@@ -6,6 +6,8 @@ precision highp float;
 in vec4 position;
 void main(){gl_Position=position;}`
 
+// Generative soft-photo clouds: warm sky gradient + layered fbm clouds,
+// slowly drifting. Designed to read as "photographic sky" more than "shader art".
 const FRAGMENT_SRC = `#version 300 es
 precision highp float;
 out vec4 O;
@@ -14,43 +16,67 @@ uniform float time;
 #define FC gl_FragCoord.xy
 #define T time
 #define R resolution
-#define MN min(R.x,R.y)
 
 float rnd(vec2 p){p=fract(p*vec2(12.9898,78.233));p+=dot(p,p+34.56);return fract(p.x*p.y);}
-float noise(in vec2 p){vec2 i=floor(p),f=fract(p),u=f*f*(3.-2.*f);float a=rnd(i),b=rnd(i+vec2(1,0)),c=rnd(i+vec2(0,1)),d=rnd(i+1.);return mix(mix(a,b,u.x),mix(c,d,u.x),u.y);}
-float fbm(vec2 p){float t=.0,a=1.;mat2 m=mat2(1.,-.5,.2,1.2);for(int i=0;i<5;i++){t+=a*noise(p);p*=2.*m;a*=.5;}return t;}
-float clouds(vec2 p){float d=1.,t=.0;for(float i=.0;i<3.;i++){float a=d*fbm(i*10.+p.x*.2+.2*(1.+i)*p.y+d+i*i+p);t=mix(t,d,a);d=a;p*=2./(i+1.);}return t;}
+float noise(in vec2 p){
+  vec2 i=floor(p), f=fract(p), u=f*f*(3.-2.*f);
+  float a=rnd(i), b=rnd(i+vec2(1,0)), c=rnd(i+vec2(0,1)), d=rnd(i+1.);
+  return mix(mix(a,b,u.x),mix(c,d,u.x),u.y);
+}
+float fbm(vec2 p){
+  float t=.0, a=.5; mat2 m=mat2(1.,-.5,.2,1.2);
+  for(int i=0;i<5;i++){ t+=a*noise(p); p*=2.*m; a*=.5; }
+  return t;
+}
+// Domain-warped "clouds" — produces clear billowy shapes (not smooth fbm)
+float clouds(vec2 p){
+  float d=1., t=.0;
+  for(float i=.0; i<3.; i++){
+    float a=d*fbm(i*10.+p.x*.2+.2*(1.+i)*p.y+d+i*i+p);
+    t=mix(t,d,a);
+    d=a;
+    p*=2./(i+1.);
+  }
+  return t;
+}
 
 void main(void){
-  // Use max(R.x,R.y) so uv spans the full viewport on wide screens
-  vec2 uv=(FC-.5*R)/max(R.x,R.y)*1.8,st=uv*vec2(2,1);
-  vec3 col=vec3(0);
-  float bg=clouds(vec2(st.x+T*.35,-st.y));
-  float breathe=1.-.15*(sin(T*.2)*.5+.5);
-  // Bright foreground stars — spread across viewport
-  for(float i=1.;i<44.;i++){
-    vec2 p=uv*breathe+.75*vec2(
-      cos(i*1.3+T*.4+sin(i)*2.1),
-      sin(i*1.7+T*.35+cos(i)*1.8)
-    );
-    float d=length(p);
-    col+=.0014/d*(cos(sin(i)*vec3(2.2,1.4,0.6))+1.);
-    float b=noise(i+p+bg*1.731);
-    col+=.0018*b/length(max(p,vec2(b*p.x*.02,p.y)));
-    col=mix(col,vec3(bg*.05,bg*.08,bg*.22),d*.45);
-  }
-  // Second layer: tiny dim background stars for density
-  for(float j=1.;j<28.;j++){
-    vec2 p=uv*breathe+.9*vec2(
-      cos(j*2.7+T*.18+sin(j*1.3)*1.6),
-      sin(j*2.1+T*.22+cos(j*1.7)*1.4)
-    );
-    float d=length(p);
-    col+=.0007/d*(cos(sin(j)*vec3(1.8,1.2,0.8))+1.);
-  }
-  // Subtle purple vignette bias toward edges
-  col+=vec3(.02,.015,.06)*smoothstep(.2,1.2,length(uv));
-  O=vec4(col,1);
+  vec2 uv = FC / R;
+  float ar = R.x / R.y;
+  vec2 p = (uv - 0.5) * vec2(ar, 1.0) * 2.0;
+
+  // Sky gradient — warm horizon, clear blue upward
+  vec3 horizon = vec3(0.995, 0.895, 0.790);
+  vec3 midsky  = vec3(0.720, 0.830, 0.945);
+  vec3 zenith  = vec3(0.420, 0.620, 0.875);
+  vec3 sky = mix(horizon, midsky, smoothstep(0.0, 0.40, uv.y));
+  sky = mix(sky, zenith, smoothstep(0.35, 1.0, uv.y));
+
+  // Multiple cloud layers at different scales — lots of distinct puffs
+  float c1 = clouds(vec2(p.x * 1.3 + T * 0.16, -p.y * 1.3));
+  float c2 = clouds(vec2(p.x * 2.4 - T * 0.11 + 7.0, -p.y * 2.4 + 3.0));
+  float c3 = clouds(vec2(p.x * 4.0 + T * 0.09 + 13.0, -p.y * 4.0 - 5.0));
+
+  // Normalized density (weights sum to 1) so smoothstep range is meaningful
+  float density = c1 * 0.50 + c2 * 0.32 + c3 * 0.18;
+
+  // Sharp edges, multiple puffs scattered across sky
+  float coverage = smoothstep(0.50, 0.66, density);
+
+  // Pure white clouds — no fake "underside" shading that turns them blue
+  vec3 cloudCol = vec3(1.0, 1.0, 0.998);
+
+  vec3 col = mix(sky, cloudCol, coverage);
+
+  // Sunlit warmth bleed from bottom-right (imaginary sun off-canvas)
+  float sun = smoothstep(1.1, 0.2, distance(uv, vec2(0.85, 0.08)));
+  col += vec3(0.06, 0.025, -0.025) * sun * 0.7;
+
+  // Subtle grain for photographic feel
+  float grain = rnd(FC) - 0.5;
+  col += grain * 0.006;
+
+  O = vec4(col, 1.0);
 }`
 
 class Renderer {
@@ -60,11 +86,9 @@ class Renderer {
   private buffer: WebGLBuffer | null = null
   private uRes: WebGLUniformLocation | null = null
   private uTime: WebGLUniformLocation | null = null
-  private scale: number
 
-  constructor(canvas: HTMLCanvasElement, scale: number) {
+  constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas
-    this.scale = scale
     const gl = canvas.getContext('webgl2')
     if (!gl) throw new Error('WebGL2 not supported')
     this.gl = gl
@@ -108,15 +132,12 @@ class Renderer {
   }
 
   resize() {
-    const gl = this.gl
-    gl.viewport(0, 0, this.canvas.width, this.canvas.height)
+    this.gl.viewport(0, 0, this.canvas.width, this.canvas.height)
   }
 
   render(ms: number) {
     const gl = this.gl
     if (!this.program) return
-    gl.clearColor(0.024, 0.039, 0.078, 1)
-    gl.clear(gl.COLOR_BUFFER_BIT)
     gl.useProgram(this.program)
     gl.bindBuffer(gl.ARRAY_BUFFER, this.buffer)
     gl.uniform2f(this.uRes, this.canvas.width, this.canvas.height)
@@ -136,7 +157,7 @@ interface Props {
   style?: React.CSSProperties
 }
 
-export default function ShaderBackground({ className, style }: Props) {
+export default function CloudsBackground({ className, style }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const rafRef = useRef<number>(0)
 
@@ -156,7 +177,7 @@ export default function ShaderBackground({ className, style }: Props) {
         renderer?.resize()
       }
 
-      renderer = new Renderer(canvas, dpr)
+      renderer = new Renderer(canvas)
       renderer.setup()
       resize()
 
@@ -175,7 +196,7 @@ export default function ShaderBackground({ className, style }: Props) {
         renderer.destroy()
       }
     } catch (err) {
-      console.warn('ShaderBackground disabled:', err)
+      console.warn('CloudsBackground disabled:', err)
     }
   }, [])
 

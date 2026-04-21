@@ -9,6 +9,7 @@
 :root,
 [data-theme="dark"] {
   --bg:           #060A14;
+  --bg-rgb:       6, 10, 20;
   --bg-elev:      #0D1525;
   --bg-card:      #0D1525;
   --bg-card-hover:#121C30;
@@ -49,44 +50,47 @@
 }
 
 [data-theme="light"] {
-  --bg:           #FAFBFC;
+  --bg:           #FBF7EE;
+  --bg-rgb:       251, 247, 238;
   --bg-elev:      #FFFFFF;
   --bg-card:      #FFFFFF;
-  --bg-card-hover:#F2F6FC;
-  --border:       #E5EBF2;
-  --border-soft:  #EEF2F7;
-  --text:         #0F1629;
-  --text-soft:    #2E3F54;
-  --text-muted:   #5C7088;
-  --text-dim:     #8AA5BF;
-  --accent:       #4A8BFF;
-  --accent-rgb:   74, 139, 255;
+  --bg-card-hover:#FAF4E5;
+  --border:       #EADFC9;
+  --border-soft:  #F1E8D4;
+  --text:         #1A1307;
+  --text-soft:    #3A2F1C;
+  --text-muted:   #6B5C45;
+  --text-dim:     #9A8B6F;
+  --accent:       #3478F6;
+  --accent-rgb:   52, 120, 246;
   --accent-2:     #8C67F0;
   --accent-2-rgb: 140, 103, 240;
   --accent-3:     #17B978;
   --accent-3-rgb: 23, 185, 120;
   --btn-fg:       #FFFFFF;
-  --glow-blue:    rgba(74,139,255,0.08);
-  --glow-purple:  rgba(140,103,240,0.06);
+  --glow-blue:    rgba(52,120,246,0.10);
+  --glow-purple:  rgba(140,103,240,0.07);
+  --shadow-card:  0 4px 14px rgba(70,45,10,.06), 0 1px 3px rgba(70,45,10,.03);
+  --shadow-card-hover: 0 18px 36px rgba(70,45,10,.10), 0 0 40px rgba(52,120,246,.06);
   --g1-from:      #0F1629;
   --g1-to:        #4A5A75;
   --g2-from:      #4A8BFF;
   --g2-mid:       #6B6DDA;
   --g2-to:        #8C67F0;
-  --g-title-from: #0F1629;
-  --g-title-to:   #4A5A75;
+  --g-title-from: #1A1307;
+  --g-title-to:   #5A4A2E;
   --input-bg:     #FFFFFF;
-  --scrollbar-track: #FAFBFC;
-  --scrollbar-thumb: #D0DAE8;
+  --scrollbar-track: #FBF7EE;
+  --scrollbar-thumb: #D8CBAE;
   --noise-blend:  multiply;
-  --noise-opacity: 0.02;
-  --nav-bg:       rgba(250,251,252,0.85);
-  --modal-backdrop: rgba(15,22,41,.45);
-  --tag-bg:       rgba(15,22,41,.04);
-  --slider-nav-bg: rgba(15,22,41,.55);
-  --slider-nav-fg: #FFFFFF;
-  --dot-active:   #0F1629;
-  --dot-inactive: rgba(15,22,41,.3);
+  --noise-opacity: 0.025;
+  --nav-bg:       rgba(251,247,238,0.82);
+  --modal-backdrop: rgba(26,19,7,.45);
+  --tag-bg:       rgba(26,19,7,.04);
+  --slider-nav-bg: rgba(26,19,7,.55);
+  --slider-nav-fg: #FBF7EE;
+  --dot-active:   #1A1307;
+  --dot-inactive: rgba(26,19,7,.3);
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -199,6 +203,24 @@ body {
   0%, 100% { width: 0; opacity: .3 }
   50%      { width: 48px; opacity: 1 }
 }
+@keyframes ph-scroll {
+  0%   { transform: scaleY(0); transform-origin: top; opacity: .9 }
+  50%  { transform: scaleY(1); transform-origin: top; opacity: 1 }
+  51%  { transform: scaleY(1); transform-origin: bottom }
+  100% { transform: scaleY(0); transform-origin: bottom; opacity: 0 }
+}
+
+/* ── Hero / CTA shader switch by theme ── */
+.shader-dark  { display: block !important; }
+.shader-light { display: none  !important; }
+[data-theme="light"] .shader-dark  { display: none  !important; }
+[data-theme="light"] .shader-light { display: block !important; }
+/* Dark-theme vignette only visible in dark theme */
+[data-theme="light"] .hero-vignette-dark { display: none !important; }
+[data-theme="light"] .hero-bottom-fade {
+  background: linear-gradient(180deg, transparent 0%, rgba(251,247,238,.55) 60%, #FBF7EE 100%) !important;
+}
+/* In light theme, bg is paper cream — inherits automatically via var(--bg) */
 
 /* ═══ Reveal on scroll ═══ */
 .reveal {
@@ -254,19 +276,12 @@ body {
 }
 
 /* ── SVC cards ── */
-.svc-card::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 1px;
-  opacity: 0;
-  transition: opacity .3s;
+/* Hover effect: lift only (glow ring handled by .glow-card pseudos). */
+[data-theme="light"] .svc-card,
+[data-theme="light"] .proj-card,
+[data-theme="light"] .member {
+  box-shadow: var(--shadow-card);
 }
-.svc-blue::after   { background: linear-gradient(90deg, transparent, rgba(107,163,255,.5), transparent); }
-.svc-green::after  { background: linear-gradient(90deg, transparent, rgba(61,214,140,.4), transparent); }
-.svc-purple::after { background: linear-gradient(90deg, transparent, rgba(167,139,250,.4), transparent); }
 .svc-card:hover {
   background: var(--bg-card-hover) !important;
   transform: translateY(-3px);
@@ -276,7 +291,11 @@ body {
 [data-theme="dark"] .svc-card:hover {
   box-shadow: 0 20px 40px rgba(0,0,0,.4), 0 0 40px rgba(107,163,255,.05);
 }
-.svc-card:hover::after { opacity: 1; }
+[data-theme="light"] .svc-card:hover,
+[data-theme="light"] .proj-card:hover,
+[data-theme="light"] .member:hover {
+  box-shadow: var(--shadow-card-hover);
+}
 
 /* ── Project cards ── */
 .proj-card:hover {

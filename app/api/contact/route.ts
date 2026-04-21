@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+const escapeHtml = (s: string) =>
+  String(s ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+
 export async function POST(req: NextRequest) {
   const { name, contact, message, budget } = await req.json()
 
@@ -11,14 +17,14 @@ export async function POST(req: NextRequest) {
   }
 
   const text = [
-    '🔔 *Новая заявка с сайта*',
+    '🔔 <b>Новая заявка с сайта</b>',
     '',
-    `👤 *Имя:* ${name}`,
-    `📬 *Контакт:* ${contact}`,
-    `💰 *Бюджет:* ${budget || 'не указан'}`,
+    `👤 <b>Имя:</b> ${escapeHtml(name)}`,
+    `📬 <b>Контакт:</b> ${escapeHtml(contact)}`,
+    `💰 <b>Бюджет:</b> ${escapeHtml(budget) || 'не указан'}`,
     '',
-    `💬 *Задача:*`,
-    message,
+    `💬 <b>Задача:</b>`,
+    escapeHtml(message),
   ].join('\n')
 
   const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
@@ -27,10 +33,15 @@ export async function POST(req: NextRequest) {
     body: JSON.stringify({
       chat_id: CHAT_ID,
       text,
-      parse_mode: 'Markdown',
+      parse_mode: 'HTML',
+      disable_web_page_preview: true,
     }),
   })
 
-  if (!res.ok) return NextResponse.json({ error: 'TG error' }, { status: 500 })
+  if (!res.ok) {
+    const err = await res.text().catch(() => '')
+    console.error('[contact] Telegram error:', err)
+    return NextResponse.json({ error: 'TG error' }, { status: 500 })
+  }
   return NextResponse.json({ ok: true })
 }

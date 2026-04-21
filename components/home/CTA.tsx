@@ -3,18 +3,32 @@ import { useState } from 'react'
 import { IconTelegram, IconMail, IconBriefcase } from '@/components/ui/icons'
 import { useT } from '@/lib/i18n'
 import Reveal from '@/components/ui/Reveal'
+import ShaderBackground from '@/components/ui/ShaderBackground'
+import CloudsBackground from '@/components/ui/CloudsBackground'
 
 export default function CTA() {
   const { t } = useT()
   const [form, setForm] = useState({ name: '', contact: '', budget: '', message: '' })
   const [sending, setSending] = useState(false)
   const [status, setStatus] = useState<'idle' | 'ok' | 'err'>('idle')
+  const [copied, setCopied] = useState<string | null>(null)
 
   const CHANNELS = [
-    { icon: IconTelegram, name: 'Telegram', sub: t('cta.ch1.sub'), href: 'https://t.me/phantomstudio' },
-    { icon: IconMail,     name: 'Email',    sub: t('cta.ch2.sub'), href: 'mailto:hello@phantom.studio' },
-    { icon: IconBriefcase,name: 'Kwork',    sub: t('cta.ch3.sub'), href: 'https://kwork.ru/' },
+    { icon: IconTelegram, name: 'Telegram',     sub: t('cta.ch1.sub'), href: 'https://t.me/phantommngr',      copy: null },
+    { icon: IconMail,     name: 'Яндекс.Почта', sub: t('cta.ch2.sub'), href: 'mailto:phantombuisness@ya.ru',  copy: 'phantombuisness@ya.ru' },
+    { icon: IconMail,     name: 'Gmail',        sub: t('cta.ch3.sub'), href: 'mailto:phantombuisnes@gmail.com', copy: 'phantombuisnes@gmail.com' },
   ]
+
+  async function handleCopy(e: React.MouseEvent, text: string) {
+    e.preventDefault()
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied(text)
+      setTimeout(() => setCopied(null), 1800)
+    } catch {
+      window.location.href = `mailto:${text}`
+    }
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -40,8 +54,28 @@ export default function CTA() {
   }
 
   return (
-    <section id="contact" className="ph-shell">
-      <div className="ph-wrap">
+    <section id="contact" className="ph-shell" style={{ position: 'relative', overflow: 'hidden' }}>
+      <div aria-hidden className="shader-dark" style={{
+        position: 'absolute', inset: 0, pointerEvents: 'none',
+        WebkitMaskImage: 'linear-gradient(180deg, transparent 0%, rgba(0,0,0,.55) 18%, #000 42%, #000 80%, rgba(0,0,0,.55) 95%, transparent 100%)',
+        maskImage: 'linear-gradient(180deg, transparent 0%, rgba(0,0,0,.55) 18%, #000 42%, #000 80%, rgba(0,0,0,.55) 95%, transparent 100%)',
+        zIndex: 0,
+      }}>
+        <ShaderBackground />
+      </div>
+      <div aria-hidden className="shader-light" style={{
+        position: 'absolute', inset: 0, pointerEvents: 'none',
+        WebkitMaskImage: 'linear-gradient(180deg, transparent 0%, rgba(0,0,0,.55) 15%, #000 40%, #000 80%, rgba(0,0,0,.55) 95%, transparent 100%)',
+        maskImage: 'linear-gradient(180deg, transparent 0%, rgba(0,0,0,.55) 15%, #000 40%, #000 80%, rgba(0,0,0,.55) 95%, transparent 100%)',
+        zIndex: 0,
+      }}>
+        <CloudsBackground />
+      </div>
+      <div aria-hidden className="hero-vignette-dark" style={{
+        position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 0,
+        background: 'radial-gradient(ellipse at 50% 50%, transparent 35%, rgba(6,10,20,.55) 100%)',
+      }} />
+      <div className="ph-wrap" style={{ position: 'relative', zIndex: 1 }}>
         <div className="contact-grid" style={{
           display: 'grid',
           gridTemplateColumns: '1fr 1fr',
@@ -81,29 +115,45 @@ export default function CTA() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {CHANNELS.map(c => {
                   const Icon = c.icon
+                  const isCopied = c.copy && copied === c.copy
                   return (
-                    <a key={c.name} href={c.href} className="chan" target="_blank" rel="noopener noreferrer" style={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      padding: '14px 18px',
-                      background: 'var(--bg-card)',
-                      border: '1px solid var(--border)',
-                      borderRadius: 10,
-                      textDecoration: 'none', color: 'inherit',
-                      transition: 'all .2s',
-                    }}>
+                    <a
+                      key={c.name}
+                      href={c.href}
+                      className="chan"
+                      target={c.copy ? undefined : '_blank'}
+                      rel="noopener noreferrer"
+                      onClick={c.copy ? (e) => handleCopy(e, c.copy!) : undefined}
+                      style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        padding: '14px 18px',
+                        background: 'var(--bg-card)',
+                        border: '1px solid var(--border)',
+                        borderRadius: 10,
+                        textDecoration: 'none', color: 'inherit',
+                        cursor: 'pointer',
+                        transition: 'all .2s',
+                      }}
+                    >
                       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                         <span style={{ display: 'inline-flex', color: 'var(--text-muted)' }}>
                           <Icon size={15} />
                         </span>
                         <div>
                           <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text)' }}>{c.name}</div>
-                          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>{c.sub}</div>
+                          <div style={{
+                            fontSize: 11, marginTop: 1,
+                            color: isCopied ? '#3DD68C' : 'var(--text-muted)',
+                            transition: 'color .2s',
+                          }}>
+                            {isCopied ? '✓ Скопировано в буфер' : c.sub}
+                          </div>
                         </div>
                       </div>
                       <span className="chan-arr" style={{
                         fontSize: 13, color: 'var(--text-dim)',
                         transition: 'transform .2s, color .2s',
-                      }}>↗</span>
+                      }}>{c.copy ? '⎘' : '↗'}</span>
                     </a>
                   )
                 })}
