@@ -38,6 +38,10 @@ export function GlowCard({
     const el = ref.current
     if (!el) return
 
+    el.style.setProperty('--gx', '-9999')
+    el.style.setProperty('--gy', '-9999')
+    el.style.setProperty('--gxp', '0.5')
+
     const onMove = (e: PointerEvent) => {
       const r = el.getBoundingClientRect()
       const x = e.clientX - r.left
